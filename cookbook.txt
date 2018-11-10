@@ -1,0 +1,616 @@
+USE sqlcookbook;
+
+-- CHAPTER 3, MULTIPLE TABLES
+
+-- find items in one table that aren't in 
+-- another table, when there are nulls potentially 
+-- present
+-- uses correlated subquery
+/*
+select d.deptno 
+from dept d 
+where not exists (
+select 1 from emp e where
+d.deptno = e.deptno)
+;
+*/
+
+/*
+-- this returns "1" for each row
+-- in emp
+select 1 from emp e
+;
+*/
+
+/* 
+-- this return "1" for each row
+-- in emp that has deptno 40 (which is empty set)
+select 1 from emp e
+where e.deptno = 40
+;
+*/
+-- so query above iterates through deptno
+-- results in dept table
+-- correlated subquery returns results
+-- when deptno currently on matches results
+-- in emp table. when doesn't match any results
+-- in emp table, returns nothing
+-- In that case, 'not exists' evaluates to TRUE
+-- and the row is returned
+
+/*
+-- return rows (not just values) that do not have
+-- a match in another table
+-- Use outer join and filter for NULLs
+select e.ename, e.deptno as emp_depno, d.*
+from dept d
+left outer join emp e
+on (d.deptno=e.deptno)
+where e.deptno is null
+; 
+*/
+
+/*
+select * from dept;
+
+select ename, deptno from emp
+-- where deptno = 40
+;
+*/
+-- original solution shows that when doing an outer join
+-- need to include columns from both tables in order
+-- to see if there are nulls
+-- if only show columns from one 
+-- or don't filter out nulls,
+-- shows all rows from first table without any different
+-- from select statement from that table without a join
+ 
+/*
+Compare these results:
+
++-------+-----------+--------+------------+--------+
+| ename | emp_depno | DEPTNO | DNAME      | LOC    |
++-------+-----------+--------+------------+--------+
+| NULL  |      NULL |     40 | OPERATIONS | BOSTON |
++-------+-----------+--------+------------+--------+
+1 row in set (0.00 sec)
+
+To these results that original solution gives:
+
++--------+------------+--------+
+| DEPTNO | DNAME      | LOC    |
++--------+------------+--------+
+|     40 | OPERATIONS | BOSTON |
++--------+------------+--------+
+1 row in set (0.00 sec)
+
+*/
+
+/*
+-- add to query that returns results want
+-- without changing amount of info provided
+select emp.ename, dept.loc
+from emp, dept
+where emp.deptno = dept.deptno
+;
+
+select emp.ename, dept.loc, emp_bonus.received
+from emp, dept, emp_bonus
+where emp.deptno=dept.deptno
+and emp.empno=emp_bonus.empno
+;
+
+*/
+
+/*
+-- modify create to use outer joins
+select emp.ename, dept.loc, emp.deptno as emp_deptno,
+dept.deptno as dept_deptno,
+emp.empno as emp_empno, emp_bonus.empno as emp_bonus_empno,
+emp_bonus.received
+from emp
+left outer join dept
+on emp.deptno = dept.deptno
+left outer join emp_bonus
+on emp.empno = emp_bonus.empno
+order by dept.loc, emp.ename
+;
+
+-- clean up columns only included for testing
+select emp.ename, dept.loc, emp_bonus.received
+from emp
+-- left outer join dept
+-- example uses inner join to join emp & dept
+join dept
+on emp.deptno = dept.deptno
+left outer join emp_bonus
+on emp.empno = emp_bonus.empno
+order by dept.loc, emp.ename
+;
+
+
+-- same solution but using a scalar subquery
+-- (a subquery that returns a scalar value)
+select emp.ename, dept.loc,
+(select emp_bonus.received from emp_bonus
+where emp_bonus.empno = emp.empno) as received
+from emp, dept
+where emp.deptno=dept.deptno
+order by dept.loc
+;
+
+*/
+
+-- Identifying and avoiding cartesian products
+
+/*
+select count(*) from emp
+union all select count(*) from dept;
+*/
+
+/*
+-- calculate how many rows a cartesian product should product
+-- should be number of rows from one table times number of rows in the other
+select (select count(*) from emp) * (select count(*) from dept)
+;
+-- result: 56
+
+-- perform cross join
+-- result should be 56 rows (cartesian product)
+select emp.ename, dept.loc
+from emp, dept
+;
+-- result: 56 rows
+*/
+
+/*
+-- here is the original query that returns incorrect results
+-- due to use of a cross join
+select emp.ename, dept.loc
+from emp, dept
+where emp.deptno = 10
+;
+*/
+-- know it's wrong because dept 10 is in new york,
+-- so only new york should show in result set
+
+/*
+-- solution is to use a join
+-- if just list tables in from clause,
+-- result will be product of cardinalities of the tables
+-- in the from clause
+select emp.ename, dept.loc
+from emp, dept
+where emp.deptno = 10
+and dept.deptno = emp.deptno
+;
+
+-- other synatax to achieve same:
+select emp.ename, dept.loc
+from emp
+JOIN dept
+ON emp.deptno = dept.deptno
+where emp.deptno = 10
+;
+*/
+
+-- Performing joins when using aggregates
+
+/*
+select * from emp_bonus
+;
+*/
+
+/*
+-- original query with mistake causing over-counting of salaries
+select deptno, sum(sal) as total_sal, sum(bonus) as total_bonus
+from 
+(select e.empno, e.ename, e.sal, e.deptno, 
+e.sal*case when eb.type = 1 then .1 when eb.type = 2 then .2 else .3 end as bonus 
+from emp e, emp_bonus eb 
+where e.empno = eb.empno and e.deptno=10) x 
+group by deptno
+;
+
+-- validation of actual total of salary column for dept 10 
+select sum(sal) from emp where deptno=10
+;
+
+select e.empno, e.ename, e.sal, e.deptno, 
+e.sal*case when eb.type = 1 then .1 when eb.type = 2 then .2 else .3 end as bonus 
+from emp e, emp_bonus eb 
+where e.empno = eb.empno and e.deptno=10
+;
+
+-- experiment with ways to identify there are duplicates in a table
+select count(empno) from emp_bonus;
+select count(distinct empno) from emp_bonus;
+
+-- Solution 1: use distinct in aggregate call
+-- Note that 'distinct' keyword in sum(bonus) isn't strictly necessary for this example
+--  and book doesn't include it, but it seems like it would be safer to include it 
+--  in other cases
+select deptno, sum(distinct sal) as total_sal, sum(distinct bonus) as total_bonus
+from 
+(select e.empno, e.ename, e.sal, e.deptno, 
+e.sal*case when eb.type = 1 then .1 when eb.type = 2 then .2 else .3 end as bonus 
+from emp e, emp_bonus eb 
+where e.empno = eb.empno and e.deptno=10) x 
+group by deptno
+;
+
+-- Solution 2: use an inline view
+-- Book solution
+select d.deptno, d.total_sal, sum(e.sal*case 
+                                    when eb.type=1 then .1
+                                    when eb.type=2 then .2
+                                    else .3 end) as total_bonus
+from emp e,
+emp_bonus eb,
+(select deptno, sum(sal) as total_sal from emp
+where deptno = 10
+group by deptno) d
+where e.deptno = d.deptno
+and e.empno = eb.empno
+group by d.deptno, d.total_sal
+;
+*/
+
+-- My inline view solution
+/* tables:
+emp : [deptno, sal]
+emp_bonus : [empno, type]
+dept
+*/
+
+/*
+-- exploratory
+-- confirm which employees appear in the emp_bonus table
+select * from emp where empno in (select empno from emp_bonus);
+
+-- first get employeees and salaries from dept 10
+-- note per mysql msg "every derived table must have its own alias"
+select sum(sal) as total_sal from (select empno, deptno, sal from emp where deptno = 10) salaries
+;
+
+-- then get bonus figures for dept 10
+select * from emp_bonus;
+
+
+select sum(bonus_amount) from (
+select bonus.empno, bonus.type, emp.deptno, emp.sal, (emp.sal*case 
+                                                    when bonus.type=1 then .1
+                                                    when bonus.type=2 then .2
+                                                    else .3 end) bonus_amount
+
+from emp_bonus as bonus
+left join emp
+on bonus.empno = emp.empno) bonus_amount_table
+;
+*/
+
+-- Task: Show total salary and total bonus for all employees in dept 10
+-- Bonus must be calculated based on bonus type
+/*
+select * from emp_bonus;
+
+select * from emp limit 5;
+*/
+
+/* 
+-- exploratory
+select emp.empno, emp.sal from emp
+where emp.deptno = 10
+;
+
+-- calculate total bonus per emp number
+select emp_bonus.empno, emp_bonus.type, emp.sal 
+from emp_bonus
+left join emp
+on emp.empno = emp_bonus.empno
+;
+*/
+
+/*
+select emp.empno,
+        emp.deptno,
+        emp.sal as salary_amt_for_bonus_calc,
+        coalesce(type,0) as bonus_type
+from emp
+left join emp_bonus
+on emp.empno = emp_bonus.empno
+;
+*/       
+/*
+select emp.empno,
+        emp.deptno,
+        emp.sal as salary_amt_for_bonus_calc,
+        coalesce(type,0) as bonus_type,
+        emp.sal*case 
+        when type is null then 0
+        when type = 1 then .1
+        when type = 2 then .2
+        when type = 3 then .3
+        else 0 end as bonus_amount
+from emp
+left join emp_bonus
+on emp.empno = emp_bonus.empno
+;
+*/
+
+/* 
+ -- this solution provided correct results of total salary and total bonus by department
+ -- book problem was only for dept 10 but wanted to do grouping by dept
+select salary_by_dept.deptno, 
+        salary_by_dept.total_salary,
+        bonus_by_dept.bonus_amount
+
+from (
+    select emp.deptno, sum(emp.sal) as total_salary
+from emp
+group by emp.deptno
+    ) as salary_by_dept
+
+left join 
+
+(
+    select  emp.deptno,
+        sum(
+        emp.sal*case 
+        when type is null then 0
+        when type = 1 then .1
+        when type = 2 then .2
+        when type = 3 then .3
+        else 0 end
+            ) as bonus_amount
+from emp
+left join emp_bonus
+on emp.empno = emp_bonus.empno
+group by emp.deptno
+) bonus_by_dept
+
+ON bonus_by_dept.deptno = salary_by_dept.deptno
+;
+*/
+
+/*
+select deptno, sal as total_sal from emp
+where deptno = 10
+-- group by deptno
+;
+*/
+/*
+ -- recap of book solution 2 & playing around with grouping to understand it
+select d.deptno, 
+        d.total_sal, 
+        sum( e.sal* case 
+        when eb.type = 1 then .1 
+        when eb.type = 2 then .2 
+        else .3 end) as total_bonus 
+from emp e, 
+    emp_bonus eb, 
+    ( select deptno, 
+        sum( sal) as total_sal 
+      from emp 
+      where deptno = 10 
+      group by deptno ) d 
+where e.deptno = d.deptno and e.empno = eb.empno 
+-- group by d.deptno, d.total_sal
+group by d.deptno
+;
+*/
+
+/*
+-- recap of book solution but with explicit joins
+select d.deptno, 
+        d.total_sal,
+        sum(e.sal*case
+        when eb.type=1 then .1
+        when eb.type=2 then .2
+        else .3 end) as total_bonus
+from emp e
+left join emp_bonus eb
+ON e.empno = eb.empno
+left join 
+ (select deptno, 
+         sum( sal) as total_sal 
+    from emp 
+    where deptno = 10 
+    group by deptno ) d
+ON e.deptno = d.deptno
+group by d.deptno
+;
+*/
+/* RESULTS:
++--------+-----------+-------------+
+| deptno | total_sal | total_bonus |
++--------+-----------+-------------+
+|   NULL |      NULL |      6082.5 |
+|     10 |      8750 |      2135.0 |
++--------+-----------+-------------+
+2 rows in set (0.00 sec)
+*/
+
+/*
+
+-- add grouping for salary
+select d.deptno, 
+        d.total_sal,
+        sum(e.sal*case
+        when eb.type=1 then .1
+        when eb.type=2 then .2
+        else .3 end) as total_bonus
+from emp e
+left join emp_bonus eb
+ON e.empno = eb.empno
+left join 
+ (select deptno, 
+         sum( sal) as total_sal 
+    from emp 
+    where deptno = 10 
+    group by deptno ) d
+ON e.deptno = d.deptno
+group by d.deptno, d.total_sal
+;
+*/
+
+/* RESULTS:
++--------+-----------+-------------+
+| deptno | total_sal | total_bonus |
++--------+-----------+-------------+
+|   NULL |      NULL |      6082.5 |
+|     10 |      8750 |      2135.0 |
++--------+-----------+-------------+
+2 rows in set (0.00 sec)
+*/
+
+/*
+-- try making first join an inner join
+-- add grouping for salary
+select d.deptno, 
+        d.total_sal,
+        sum(e.sal*case
+        when eb.type=1 then .1
+        when eb.type=2 then .2
+        else .3 end) as total_bonus
+from emp e
+join emp_bonus eb
+ON e.empno = eb.empno
+left join 
+ (select deptno, 
+         sum( sal) as total_sal 
+    from emp 
+    where deptno = 10 
+    group by deptno ) d
+ON e.deptno = d.deptno
+group by d.deptno, d.total_sal
+;
+*/
+/* RESULTS: 
++--------+-----------+-------------+
+| deptno | total_sal | total_bonus |
++--------+-----------+-------------+
+|     10 |      8750 |      2135.0 |
++--------+-----------+-------------+
+1 row in set (0.00 sec)
+*/
+
+/*
+-- UPDATE: next problem includes same task solved with outer joins,
+--   i.e., "here you outer join to EMP_BONUS to ensure all employees 
+--    from department 10 are included."
+-- note use of distinct
+
+select deptno, 
+        sum( distinct sal) as total_sal, 
+        sum( bonus) as total_bonus 
+        from (
+            select e.empno, e.ename, e.sal, e.deptno,
+            e.sal* case 
+            when eb.type is null then 0 
+            when eb.type = 1 then .1 
+            when eb.type = 2 then .2 
+            else .3 end as bonus
+            from emp e 
+            left outer join emp_bonus eb 
+            on (e.empno = eb.empno) 
+            where e.deptno = 10) x
+            group by deptno
+
+*/
+
+/* results:
++--------+-----------+-------------+
+| deptno | total_sal | total_bonus |
++--------+-----------+-------------+
+|     10 |      8750 |      2135.0 |
++--------+-----------+-------------+
+1 row in set (0.00 sec)
+*/
+
+-- rows from multiple tables that don't exist in other
+-- would use full outer join in SQL Server but MySQL doesn't have that 
+/* -- uses full out join (unavailable in mysql)
+select dept.deptno, dept.dname, emp.ename
+from dept
+full outer join emp
+on dept.deptno=emp.deptno
+;
+*/
+
+-- for test purposes, insert employee into employees withotu a dept 
+
+/*
+select * from emp limit 5;
+
+INSERT INTO EMP (empno, ename, job, mgr, hiredate, sal, comm, deptno) VALUES (1111,' YODA',' JEDI', null, hiredate, sal, comm, null)
+*/
+
+/*
+-- use full outer join of one table & then union it with full out join of other table
+select dept.deptno, dept.dname, emp.ename
+from dept right outer join emp
+on dept.deptno = emp.deptno
+union
+select dept.deptno, dept.dname, emp.ename
+from dept left outer join emp
+on dept.deptno = emp.deptno
+;
+*/
+
+/*
+-- comparing with nullable values
+select ename, comm from emp
+where coalesce(comm, 0) < (
+    select comm from emp where ename = 'WARD')
+;
+
+-- modify above removing nulls in result comm column
+select ename, coalesce(comm,0) from emp
+where coalesce(comm, 0) < (
+    select comm from emp where ename = 'WARD')
+;
+
+-- confirm results with review of comm column
+select ename, comm from emp;
+*/
+
+-- CHAPTER 6 -- strings
+
+/*
+-- walking a string
+
+select * from t10;
+
+select ename, iter.pos from 
+(select ename from emp where ename = 'KING') e,
+(select id as pos from t10) iter
+;
+
+select ename from emp where ename = "KING";
+select id as pos from t10;
+
+select length(e.ename) from (select ename from emp where ename = 'KING') e;
+
+select ename, iter.pos from 
+(select ename from emp where ename = 'KING') e,
+(select id as pos from t10) iter
+where iter.pos <= length(e.ename)
+;
+
+select substr(e.ename, 1,1) from (select ename from emp where ename = 'KING') e;
+
+select substr(e.ename, iter.pos, 1) as C
+from (select ename from emp where ename = 'KING') e,
+(select id as pos from t10) iter
+where iter.pos <=  length(e.ename);
+
+-- return only part of a string (not just first character)
+select substr(e.ename, iter.pos) a,
+substr(e.ename, length(e.ename)-iter.pos+1) b
+from (select ename from emp where ename = 'KING') e,
+(select id pos from t10) iter
+where iter.pos <= length(e.ename)
+;
+*/
+/* select substr(ename, length(ename)) from emp where ename = 'KING'; */

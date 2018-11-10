@@ -1,0 +1,102 @@
+mysql reference worksheet
+
+// RESET PASSWORD
+SET PASSWORD = PASSWORD('your_new_password');
+
+SET PASSWORD = PASSWORD('94vpdbtgj6pyfjmxnz');
+
+// CREATE A DATABASE
+
+CREATE {DATABASE | SCHEMA} [IF NOT EXISTS] db_name
+    [create_specification] ...
+
+create_specification:
+    [DEFAULT] CHARACTER SET [=] charset_name
+  | [DEFAULT] COLLATE [=] collation_name
+
+// SHOW DATABASES CREATED
+
+SHOW DATABASES;
+
+// SWITCH TO db_name
+
+USE db_name;
+
+// SHOW TABLES IN DB
+
+SHOW TABLES;
+
+// EXECUTE COMMANDS IN A SQL FILE
+// (ALWAYS USE ABSOLUTE PATH?)
+
+SOURCE filename
+//E.G.: source /Users/jasondixon/Dropbox/Projects/SQL_Cookbook/tables.sql;
+
+// SUBSTRING
+
+//length ARGUMENT NOT NEEDED IF WANT TO SELECT ALL CHARACTERS TO RIGHT OF SPECIFIC INDEX POSITION
+//****ALSO NOTE THAT SQL STRINGS ARE 1-INDEXED, NOT 0-INDEXED
+
+SUBSTR(string, position, length)
+//OR
+SUBSTR(string, position)
+//OR
+SUBSTRING_INDEX(string, delimiter, count)
+
+
+//ALSO: substr(col, length(col)-1):
+//To sort by the last two characters of a string, 
+//find the end of the string (which is the length of the string) 
+//and subtract 1.
+//The start position will be the second to last character in the string.
+/*
+select ename, job from emp order by substr( job, length( job)-1)
+/*
+
+
+//e.g. https://stackoverflow.com/questions/12771311/how-to-substring-a-mysql-table-column
+
+command                                      prints
+-------------------------------------------  -----------
+select substr("abcd", 1, 1)                  #a
+select substr("abcd", 1, 2)                  #ab
+select substr("abcd", 2, 1)                  #b
+select substr("abcd", 2, 2)                  #bc
+select substr("abcd", -2, 1)                 #c
+select substr("abcd", -2, 2)                 #cd
+
+select substring_index('ababab', 'b', 1);    #a
+select substring_index('ababab', 'b', 2);    #aba
+select substring_index('ababab', 'b', 3);    #ababa
+select substring_index('ababab', 'b', -1);   #
+select substring_index('ababab', 'b', -2);   #ab
+select substring_index('ababab', 'b', -3);   #abab
+
+select substr("abcd", 2)                     #bcd
+select substr("abcd", 3)                     #cd
+select substr("abcd", 4)                     #d
+select substr("abcd", -2)                    #cd
+select substr("abcd", -3)                    #bcd
+select substr("abcd", -4)                    #abcd
+
+// SORT ON DATA-DEPENDENT KEY
+use CASE expression in order by clause to dynamically change how results are sorted
+
+//SUBQUERIES
+Don't put semicolon in subquery
+
+YES:
+SELECT DEPTNO 
+FROM DEPT
+WHERE DEPTNO NOT IN (
+    SELECT DISTINCT DEPTNO FROM EMP
+    )
+;
+
+NO:
+SELECT DEPTNO 
+FROM DEPT
+WHERE DEPTNO NOT IN (
+    SELECT DISTINCT DEPTNO FROM EMP;
+    )
+;
