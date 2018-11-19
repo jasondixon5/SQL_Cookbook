@@ -1,0 +1,173 @@
+/*
+
+-- 4.5
+
+-- CREATE TABLE DEPT_2
+-- AS
+SELECT *
+FROM DEPT
+WHERE 1 = 0
+;
+
+CREATE TABLE DEPT_2
+AS
+SELECT *
+FROM DEPT
+WHERE 1 = 0
+;
+
+SHOW COLUMNS FROM DEPT;
+SHOW COLUMNS FROM DEPT_2;
+
+-- 4.9
+
+-- STUDYING FOLLOWING UPDATE QUERY:
+
+-- update emp 
+-- set sal = sal* 1.20 
+-- where exists 
+--      ( select null from emp_bonus where emp.empno = emp_bonus.empno )
+
+SELECT * FROM EMP
+WHERE EXISTS (SELECT NULL FROM EMP_BONUS
+                WHERE EMP.EMPNO = EMP_BONUS.EMPNO
+                )
+;
+
+SELECT COUNT(*) FROM EMP_BONUS;
+SELECT * FROM EMP_BONUS;
+SELECT NULL FROM EMP_BONUS;
+
+-- USING SELECT NULL REINFORCES FACT THAT IT'S NOT THE SELECT PORTION
+-- OF THE SUBQUERY THAT WILL DETERMINE WHAT WILL BE UPDATED BUT INSTEAD
+-- ITS WHERE CLAUSE
+
+-- SEQUENCE OF UPDATE QUERY:
+-- 1) TAKE FIRST ROW OF EMP TABLE
+--    A) EVALUATE SUBQUERY BY:
+--       i. RETRIEVING NULL IF EMP.EMPNO = EMP_BONUS.EMPNO -OR-
+--      ii. RETRIEVING EMPTY SET IF EMP.EMPNO != EMP_BONUS.EMPNO
+--    B) IF RESULT IS NOT EMPTY SET (I.E., IF SOMETHING EXISTS),
+--       MAKE THE UPDATE.
+
+SELECT DISTINCT EMPNO FROM EMP;
+
+-- RESULTS (NULL) RETRIEVED
+SELECT NULL FROM EMP_BONUS
+WHERE EMP_BONUS.EMPNO = 7369
+;
+
+-- NO RESULTS RETRIEVED (EMPTY SET)
+SELECT NULL FROM EMP_BONUS
+WHERE EMP_BONUS.EMPNO = 7499
+;
+
+-- FROM S.O. RESEARCH ON EXISTS:
+-- The magic link between the outer query and the subquery 
+-- lies in the fact that Supplier_id gets passed from the outer 
+-- query to the subquery for each row evaluated.
+-- Or, to put it another way, the subquery is executed for each table row 
+-- of the outer query. 
+-- https://stackoverflow.com/questions/5846882/how-do-sql-exists-statements-work
+
+*/
+-- 4.10
+
+-- SET UP NEW_SAL TABLE FOR EXERCISE
+
+DROP TABLE IF EXISTS NEW_SAL
+;
+
+CREATE TABLE NEW_SAL AS 
+SELECT DEPTNO, SAL FROM EMP
+WHERE 1 = 0
+;
+
+SELECT * FROM NEW_SAL;
+SHOW COLUMNS FROM NEW_SAL;
+
+INSERT INTO NEW_SAL VALUES (10, 4000)
+;
+
+SELECT * FROM NEW_SAL;
+
+DROP TABLE IF EXISTS EMP_COPY;
+
+CREATE TABLE EMP_COPY AS 
+SELECT * FROM EMP
+;
+
+SELECT COUNT(*) FROM EMP;
+SELECT COUNT(*) FROM EMP_COPY;
+
+SELECT DEPTNO, ENAME, SAL, COMM
+
+FROM EMP
+
+WHERE DEPTNO IN (SELECT DEPTNO FROM NEW_SAL)
+;
+
+-- PREVIEW RESULTS
+SELECT EMP.DEPTNO, 
+        EMP.EMPNO,
+        EMP.ENAME, 
+        EMP.SAL, 
+        EMP.COMM, 
+        COALESCE(NEW_SAL.SAL,
+        -- IF NEW_SAL IS NULL, TAKE EMP.SAL
+        (SELECT SAL FROM EMP EMP2
+        WHERE EMP.EMPNO = EMP2.EMPNO)) AS NEW_SAL,
+        CASE 
+        WHEN NEW_SAL.SAL IS NOT NULL THEN NEW_SAL.SAL * .5
+        ELSE 0 END AS NEW_COMM
+
+FROM EMP
+LEFT JOIN 
+NEW_SAL
+ON EMP.DEPTNO = NEW_SAL.DEPTNO
+;
+
+
+-- MAKE UPDATE
+UPDATE EMP_COPY
+
+SET SAL = (
+    SELECT NEW_SAL FROM
+        (SELECT EMP.DEPTNO,
+                EMP.EMPNO,
+                EMP.ENAME, 
+                EMP.SAL, 
+                EMP.COMM, 
+                COALESCE(NEW_SAL.SAL,
+                -- IF NEW_SAL IS NULL, TAKE EMP.SAL
+                (SELECT SAL FROM EMP EMP2
+                WHERE EMP.EMPNO = EMP2.EMPNO)) AS NEW_SAL,
+                CASE 
+                WHEN NEW_SAL.SAL IS NOT NULL THEN NEW_SAL.SAL * .5
+                ELSE 0 END AS NEW_COMM
+
+        FROM EMP
+        LEFT JOIN 
+        NEW_SAL
+        ON EMP.DEPTNO = NEW_SAL.DEPTNO
+        ) 
+        X WHERE X.EMPNO = EMP_COPY.EMPNO) 
+;
+
+-- COMPARE SAL FIELDS IN ORIGINAL AND UPDATED TABLES
+SELECT EMP.EMPNO, EMP.SAL, EMP_COPY.SAL AS NEW_SAL
+FROM EMP
+LEFT JOIN EMP_COPY
+ON EMP.EMPNO = EMP_COPY.EMPNO
+WHERE EMP.EMPNO IN (7782, 7369, 7844);
+
+-- BOOK SOLUTION, MYSQL
+
+-- Include both EMP and NEW_SAL in the UPDATE clause 
+-- of the UPDATE statement and join in the WHERE clause: 
+
+-- 1 update emp e, new_sal ns 
+-- 2 set e.sal = ns.sal, 
+-- 3 e.comm = ns.sal/ 2 
+-- 4 where e.deptno = ns.deptno
+
