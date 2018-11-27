@@ -107,3 +107,15 @@ MYSQL DOES NOT YET HAVE A FULL OUTER JOIN,
 SO INSTEAD UNION THE RESULTS OF THE 
 TWO DIFFERENT OUTER JOINS
 
+// GROUP CONCAT can build delimited list for each grouping cateogry
+e.g.
+
++--------+--------------------------------------+
+| DEPTNO | EMPS                                 |
++--------+--------------------------------------+
+|     10 | CLARK,KING,MILLER                    |
+|     20 | SMITH,JONES,SCOTT,ADAMS,FORD         |
+|     30 | ALLEN,WARD,MARTIN,BLAKE,TURNER,JAMES |
++--------+--------------------------------------+
+
+
