@@ -119,10 +119,10 @@ WHERE deptno not in (
 SELECT 1, deptno FROM emp WHERE deptno = 10;
 SELECT 1, deptno FROM emp WHERE deptno = 20;
 SELECT 1, deptno FROM emp WHERE deptno = 30;
+-- the following query results in an empty set
 SELECT 1, deptno FROM emp WHERE deptno = 40;
 
-/* the last query results in an empty set */
-/* so when the following query gets to dept 40,
+/* 
   the NOT EXISTS will evaluate to False for each dept
   except dept 40, which will evaluate to True and trigger
   the condition
@@ -135,4 +135,7 @@ WHERE NOT EXISTS (
 	FROM emp e
 	WHERE d.deptno = e.deptno)
 ;
+
+/* Note that the subquery in the above query returning NULL will
+not trigger the condition. Only an empty set will trigger it. */
 
