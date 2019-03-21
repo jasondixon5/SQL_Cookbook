@@ -118,4 +118,41 @@ e.g.
 |     30 | ALLEN,WARD,MARTIN,BLAKE,TURNER,JAMES |
 +--------+--------------------------------------+
 
+LEFT JOINS AND FIELD ORDER
+
+ORDER OF FIELDS CONTROLS DISPLAY IN RESULTS,
+BUT ORDER OF TABLES IN FROM CLAUSE DETERMINES
+ORDER OF JOIN.
+
+e.g.
+
+*** NOTE THE NULLS IN THE LAST ROW ***
+
+SELECT e.ename,
+	e.deptno AS emp_deptno,
+	d.*
+FROM dept d LEFT JOIN emp e
+ON (d.deptno = e.deptno)
+;
+
++--------+------------+--------+------------+----------+
+| ename  | emp_deptno | DEPTNO | DNAME      | LOC      |
++--------+------------+--------+------------+----------+
+| SMITH  |         20 |     20 | RESEARCH   | DALLAS   |
+| ALLEN  |         30 |     30 | SALES      | CHICAGO  |
+| WARD   |         30 |     30 | SALES      | CHICAGO  |
+| JONES  |         20 |     20 | RESEARCH   | DALLAS   |
+| MARTIN |         30 |     30 | SALES      | CHICAGO  |
+| BLAKE  |         30 |     30 | SALES      | CHICAGO  |
+| CLARK  |         10 |     10 | ACCOUNTING | NEW YORK |
+| SCOTT  |         20 |     20 | RESEARCH   | DALLAS   |
+| KING   |         10 |     10 | ACCOUNTING | NEW YORK |
+| TURNER |         30 |     30 | SALES      | CHICAGO  |
+| ADAMS  |         20 |     20 | RESEARCH   | DALLAS   |
+| JAMES  |         30 |     30 | SALES      | CHICAGO  |
+| FORD   |         20 |     20 | RESEARCH   | DALLAS   |
+| MILLER |         10 |     10 | ACCOUNTING | NEW YORK |
+| NULL   |       NULL |     40 | OPERATIONS | BOSTON   |
++--------+------------+--------+------------+----------+
+15 rows in set (0.00 sec)
 

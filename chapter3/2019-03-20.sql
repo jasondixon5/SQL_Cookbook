@@ -139,3 +139,36 @@ WHERE NOT EXISTS (
 /* Note that the subquery in the above query returning NULL will
 not trigger the condition. Only an empty set will trigger it. */
 
+/* 3.5 Retrieving rows from one table that do not 
+   correspond to rows in another */
+
+/* Write like previous problem's solution to show it works
+even though book says it's a subtly different problem */
+
+SELECT d.*
+FROM dept d
+WHERE NOT EXISTS (
+	SELECT NULL
+	FROM emp e
+	WHERE d.deptno = e.deptno)
+;
+
+/* now write with book solution using outer join and filter for nulls */
+-- first show all rows returned (matched and not matched between the tables 
+SELECT d.deptno,
+	d.dname,
+	d.loc,
+	e.deptno
+FROM dept d
+LEFT OUTER JOIN emp e
+ON d.deptno = e.deptno
+;
+
+SELECT d.deptno,
+	d.dname,
+	d.loc
+FROM dept d
+LEFT OUTER JOIN emp e
+ON d.deptno = e.deptno
+WHERE e.deptno IS NULL
+;
