@@ -114,9 +114,42 @@ ON d.deptno = e.deptno
 WHERE e.deptno IS NULL
 ;
 
-SELECT e.ename,
-	e.deptno AS emp_deptno,
-	d.*
-FROM dept d LEFT JOIN emp e
-ON (d.deptno = e.deptno)
+/* 3.6 Adding joins to a query without interfering with other joins */
+
+/* nothing to practice; just demonstrates using outer joins
+or scalar subquery in select clause as way of adding fields to result
+without affecting rows returned */
+
+/* 3.7 Determining whether two tables have the same date */
+
+-- create view to check against emp table
+DROP VIEW IF EXISTS V;
+
+SHOW WARNINGS;
+
+CREATE VIEW V
+AS
+SELECT * FROM emp WHERE deptno != 10
+UNION ALL
+SELECT * FROM emp WHERE ename = "WARD"
 ;
+
+
+/* 
+Book solution hinges on fact that the view has duplicate rows.
+In this circumstance, it isn't enough to just check to see if each row
+is also in the other table. For any duplicate rows in a table, if the first
+instance was found in the other table then the subsequent (duplicate) row will
+be found also. 
+
+This constraint is overcome by creating an extra column that counts
+how many times that row appears in a table. If it appears once in each
+table, it's ignored. If it appears once in the first table but twice in the 
+second table, the counts will be different and so the (otherwise unique) rows
+will be different, and therefore the query will return each row.
+*/
+
+-- drop view from session
+DROP VIEW IF EXISTS V;
+
+
