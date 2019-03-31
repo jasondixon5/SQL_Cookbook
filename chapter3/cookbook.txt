@@ -575,42 +575,6 @@ where coalesce(comm, 0) < (
 select ename, comm from emp;
 */
 
--- CHAPTER 6 -- strings
+/* removed a few practice exercises from ch 6 (working with strings), since reorganized files to have folder for each chapter */
 
-/*
--- walking a string
 
-select * from t10;
-
-select ename, iter.pos from 
-(select ename from emp where ename = 'KING') e,
-(select id as pos from t10) iter
-;
-
-select ename from emp where ename = "KING";
-select id as pos from t10;
-
-select length(e.ename) from (select ename from emp where ename = 'KING') e;
-
-select ename, iter.pos from 
-(select ename from emp where ename = 'KING') e,
-(select id as pos from t10) iter
-where iter.pos <= length(e.ename)
-;
-
-select substr(e.ename, 1,1) from (select ename from emp where ename = 'KING') e;
-
-select substr(e.ename, iter.pos, 1) as C
-from (select ename from emp where ename = 'KING') e,
-(select id as pos from t10) iter
-where iter.pos <=  length(e.ename);
-
--- return only part of a string (not just first character)
-select substr(e.ename, iter.pos) a,
-substr(e.ename, length(e.ename)-iter.pos+1) b
-from (select ename from emp where ename = 'KING') e,
-(select id pos from t10) iter
-where iter.pos <= length(e.ename)
-;
-*/
-/* select substr(ename, length(ename)) from emp where ename = 'KING'; */
