@@ -402,6 +402,46 @@ SELECT CASE trx
 FROM V v
 ;
 
+DROP VIEW IF EXISTS V;
 
+/* Addl practice: 7.9 Finding Mode */
 
-            
+-- find mode of salaries in dept 20
+
+-- examine salaries
+SELECT sal FROM EMP WHERE deptno in (20);
+
+-- find salary counts
+SELECT sal, COUNT(*)
+FROM emp
+WHERE deptno in (20)
+GROUP BY sal
+;
+
+-- find sal with greatest frequency
+
+SELECT sal
+FROM emp
+WHERE deptno in (20)
+GROUP BY sal
+HAVING COUNT(*) >= ALL (SELECT COUNT(*)
+                        FROM emp
+                        WHERE deptno in (20)
+                        GROUP BY sal)
+;
+
+-- To explore how this solution works,
+-- add a column evaluating if each sal meets
+-- condition
+
+SELECT sal,
+        COUNT(*) as sal_freq,
+        COUNT(*) >= ALL (SELECT COUNT(*)
+                        FROM emp
+                        WHERE deptno in (20)
+                        GROUP BY sal)
+            AS meets_freq_cond
+FROM emp
+WHERE deptno in (20)
+GROUP BY sal
+;
