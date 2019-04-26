@@ -176,3 +176,39 @@ select concat(a.ename, ' - ', b.ename, ' - ', c.ename, ' - ', d.ename)
     ;
 
 /* 13.4 Finding all child rows for a given parent row */
+
+-- In MySQL, must know in advance how many nodes deep
+-- a hierarchy goes
+-- For example, find all employees who report to Jones
+-- who has 3 levels of reports
+
+-- solution uses an inline query
+-- write that query first
+select 
+    a.ename as root
+    ,b.ename as branch
+    ,c.ename as leaf
+from emp a
+join emp b on a.empno = b.mgr
+join emp c on b.empno = c.mgr
+where a.ename = 'JONES'
+;
+
+-- now unpivot the 3 columns into 1 column with 6 rows
+-- via an outer query with a case statement
+select
+    case t100.id
+        when 1 then root
+        when 2 then branch
+        else leaf
+    end as jones_subordinates
+from (
+select 
+    a.ename as root
+    ,b.ename as branch
+    ,c.ename as leaf
+from emp a
+join emp b on a.empno = b.mgr
+join emp c on b.empno = c.mgr
+where a.ename = 'JONES'
+);
