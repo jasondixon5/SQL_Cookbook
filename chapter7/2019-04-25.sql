@@ -200,3 +200,244 @@ group by e.sal
 order by e.sal
 ;
 
+/* Implement percentile to find other portions of the data */
+
+/*
+Returns the lowest number under which the percentage
+    of values represented by percentile fall below
+
+    Steps:
+    Sort list
+    Find rank of percentile via:
+        percentile (as decimal) * (length of num_list + 1)
+    a) If rank is an integer, find and return number at that rank
+    b) If rank is not an integer:
+       1) Store integer part of rank, IR
+       2) Store fractional part of rank, FR
+       3) Retrieve value at rank position IR and store as IR_V
+       4) Retrieve value at rank position (IR + 1) and store as IR1_V
+       5) Calculate FR * (IR1_V - IR_V) + IR_V
+       6) return result of step 5
+*/
+SET @perc = .5;
+SET @rnk = @perc * (1 + (SELECT count(sal) from emp where deptno=20));
+SET @rnk_int = floor(@rnk);
+SET @rnk_frac = @rnk - @rnk_int;
+
+select @perc, @rnk, @rnk_int, @rnk_frac from dual;
+
+SET @row_num = 0;
+
+SELECT @row_num := @row_num + 1 as row_num
+        ,sal 
+from emp 
+where deptno=20 
+order by sal
+;
+
+SET @row_num = 0;
+
+SELECT 
+     min(sal) as ir_v
+    ,max(sal) as ir1_v
+    ,max(sal) - min(sal) as diff
+    ,@rnk_frac * (max(sal) - min(sal)) as frac_x_diff
+    ,round(
+        @rnk_frac 
+        * (
+            max(sal) - min(sal)
+            ) 
+        + min(sal)
+        ,2) as percentile
+FROM (
+    SELECT @row_num := @row_num + 1 as row_num
+            ,sal 
+    from emp 
+    where deptno=20 
+    order by sal) x
+WHERE row_num in (@rnk_int, @rnk_int + 1)
+;
+
+/* Test percentile solution with an even-numbered list */
+SET @perc = .5;
+SET @rnk = @perc * (1 + (SELECT count(sal) from emp));
+SET @rnk_int = floor(@rnk);
+SET @rnk_frac = @rnk - @rnk_int;
+
+select @perc, @rnk, @rnk_int, @rnk_frac from dual;
+
+SET @row_num = 0;
+
+SELECT @row_num := @row_num + 1 as row_num
+        ,sal 
+from emp 
+order by sal
+;
+
+SET @row_num = 0;
+
+SELECT 
+     min(sal) as ir_v
+    ,max(sal) as ir1_v
+    ,max(sal) - min(sal) as diff
+    ,@rnk_frac * (max(sal) - min(sal)) as frac_x_diff
+    ,round(
+        @rnk_frac 
+        * (
+            max(sal) - min(sal)
+            ) 
+        + min(sal)
+        ,2) as percentile
+FROM (
+    SELECT @row_num := @row_num + 1 as row_num
+            ,sal 
+    from emp 
+    order by sal) x
+WHERE row_num in (@rnk_int, @rnk_int + 1)
+;
+
+/* 7.9 Calculating a mode (repeat, cold start) */
+ 
+-- find mode of salaries in dept 20
+
+-- show salaries in dept 20 with frequency
+select
+    sal
+    ,count(*) as frequency
+from emp
+where deptno in (20)
+group by sal
+order by count(*) desc, sal
+;
+
+-- determine mode of salaries
+select 
+    sal sal_dept20_mode
+from emp
+where deptno in (20)
+group by sal
+having count(*) >= all(
+    select count(*) from emp
+    where deptno in (20)
+    group by sal
+)
+;
+
+/* 7.10 Calculating a median */
+
+-- calculate median of salaries in dept 20
+-- book solution
+
+-- show salaries in dept 20, ordered
+select
+    sal
+from emp
+where deptno in (20)
+order by sal
+;
+
+-- determine median of salaries in dept 20
+select avg(sal) as sal_dept20_median
+from (
+    select e.sal
+    from emp e
+    cross join emp e2
+    where e.deptno = e2.deptno
+    and e.deptno in (20)
+    group by e.sal
+    having sum(case when e.sal=e2.sal then 1 else 0 end) >= abs(
+        sum(sign(e.sal - e2.sal))
+    )
+) x
+;
+/* 7.11 Determining percentage of total */
+
+-- Determine what % of all salaries each dept is
+
+-- Show total salaries by dept
+select
+    deptno
+    ,sum(sal)
+from emp
+group by deptno
+;
+
+-- add % total
+select
+    deptno
+    ,sum(sal) as dept_total
+    ,sum(sal) / (select sum(sal) from emp) as dept_proportion
+from emp
+group by deptno
+;
+
+-- alt solution, if truly only want one dept
+select
+    sum(case when deptno in (10) then sal end) / sum(sal)
+    as dept_10_prop
+from emp
+;
+
+/* 7.13 Computing averages without high and low values */
+
+-- Compute average salary excluding highest and lowest salaries
+select
+    avg(sal)
+from emp
+where sal not in (
+     (select min(sal) from emp)
+    ,(select max(sal) from emp)
+)
+;
+
+-- alternate solution if only want to exclude a single instance
+-- each of high and low value, in situation where there are
+-- multiple values of either
+select
+     (
+           sum(sal) 
+        - (select max(sal) from emp) 
+        - (select min(sal) from emp)
+     ) / (count(*) - 2) as avg_excl_single_high_low
+from emp
+;
+
+/* 7.15 Changing values in a running total */
+
+-- given view below, calculate running total
+-- where 'pr' rows add and 'py' rows subtract from total
+
+drop view if exists v;
+create view v (id, amt, trx)
+as
+select 1, 100, 'pr' from dual union all
+select 2, 100, 'pr' from dual union all
+select 3, 50, 'py' from dual union all
+select 4, 100, 'pr' from dual union all
+select 5, 200, 'py' from dual union all
+select 6, 50, 'py' from dual
+;
+
+select * from v;
+
+-- create transaction table with running total
+select
+    case trx
+        when 'py' then 'payment'
+        when 'pr' then 'purchase'
+        else 'unknown'
+    end as trx_type
+    ,amt as amt
+    ,(
+        select sum(
+            case trx 
+                when 'py' then (-1 * amt)
+                when 'pr' then amt
+                else 0 end
+                    )
+        from v v2
+        where v2.id <= v.id
+        ) as balance 
+from v
+;
+
