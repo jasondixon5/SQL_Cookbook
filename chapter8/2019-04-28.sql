@@ -200,3 +200,123 @@ from (
 ) x
 ;
 
+/* 8.6 Counting the occurrences of weekdays in a year */
+
+-- Count the number of times each weekday occurs in a year
+
+-- Construct year start and end dates
+-- Find number of days between them 
+--   (necessary to handle leap years; otherwise could just do
+--    start + 364 increments)
+select
+    datediff("2012-12-31", "2012-01-01") as increments
+from dual
+;
+
+-- generate a date for each day in the year
+select date_add("2012-01-01", interval t500.id-1 day) as incr_dt
+from t500
+where t500.id <= (
+    select
+    datediff("2012-12-31", "2012-01-01") + 1
+    from dual)
+;
+
+-- count occurrences with each day's count as a column
+-- wrap in subquery for readability
+select
+    sum(case when dayofweek(incr_dt) = 2 then 1 end) as mon_count
+    ,sum(case when dayofweek(incr_dt) = 3 then 1 end) as tue_count
+    ,sum(case when dayofweek(incr_dt) = 4 then 1 end) as wed_count
+    ,sum(case when dayofweek(incr_dt) = 5 then 1 end) as thu_count
+    ,sum(case when dayofweek(incr_dt) = 6 then 1 end) as fri_count
+   ,sum(case when dayofweek(incr_dt) = 7 then 1 end) as sat_count
+   ,sum(case when dayofweek(incr_dt) = 1 then 1 end) as sun_count
+from (
+select date_add("2012-01-01", interval t500.id-1 day) as incr_dt
+from t500
+where t500.id <= (
+    select
+    datediff("2012-12-31", "2012-01-01") + 1
+    from dual)
+) days_of_year_table;
+
+-- Book solution uses grouping rather than pivoting
+-- Implement a form of that approach:
+select
+     dow_int
+    ,count(*) as days_count
+from (
+    select
+        dayofweek(
+            date_add("2012-01-01", 
+                    interval t500.id-1 day)) as dow_int
+    from t500
+    where t500.id <= (
+        select
+        datediff("2012-12-31", "2012-01-01") + 1
+        from dual)
+) days_of_year_table
+group by dow_int
+;
+
+-- Now use date format func to get name of day instead of int dow
+-- For ordering the results, there is no general function to 
+-- get day of week int from just a weekday name string (must have
+-- date to pass to those functions) so use a case statement
+-- advantage of case statement is that you can impose
+-- whatever order of weekdays you want, including Monday as first
+select 
+    dow_str 
+    ,count(*) as days_counts
+from (
+    select
+        date_format(
+            date_add("2012-01-01", interval t500.id-1 day), '%W' ) as dow_str
+    from t500 
+    where t500.id <= (
+        select datediff("2012-12-31", "2012-01-01") + 1 from dual)
+) days_of_year_table
+group by dow_str
+order by case dow_str
+    when "Monday" then 0
+    when "Tuesday" then 1
+    when "Wednesday" then 2
+    when "Thursday" then 3
+    when "Friday" then 4
+    when "Saturday" then 5
+    when "Sunday" then 6
+    end
+;
+
+/* 8.7 Determining the date difference between the current
+record and the next record */
+
+-- For each employee determine number of days
+-- between the day they were hired and the day the next
+-- employee was hired
+
+-- get each date
+select
+    e.hiredate as hd
+    ,(select min(e2.hiredate) from emp e2 
+     where e2.hiredate > e.hiredate) as next_hd
+from emp e
+;
+
+-- calculate difference in days
+-- add other fields to subquery to be able to display who
+-- the dates are for
+select hire_dates.*, datediff(next_hd, hd) as diff_days_between
+from (
+    select
+        e.ename,
+        e.deptno,
+        e.hiredate as hd
+        ,(select min(e2.hiredate) from emp e2 
+        where e2.hiredate > e.hiredate) as next_hd
+    from emp e
+) hire_dates
+order by hire_dates.hd, hire_dates.ename
+;
+
