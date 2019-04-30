@@ -456,3 +456,129 @@ from v
 +------------------------------+
 */
 
+/* 9.10 Filling in missing dates */
+
+-- Generate a count of employees hired by month and year
+-- but do not skip the months and years in which no employees
+-- were hired
+
+-- Find the boundary dates
+select 
+     min(hiredate) as min_hd
+    ,max(hiredate) as max_hd
+from emp
+;
+
+-- Find the first day of the first year and the last day of the
+-- last year
+select
+    year(min(hiredate)) as min_year
+    ,year(max(hiredate)) as max_year
+from emp
+;
+
+select
+    concat(year(min(hiredate)), "-01-01") as min_date
+    ,concat(year(max(hiredate)), "-12-31") as max_date
+from emp
+;
+
+-- Use pivot table to generate month and year for each 
+-- date month and year between the two dates
+select
+    date_add(min_date, interval t100.id-1 month) as mth
+from (
+select
+    concat(year(min(hiredate)), "-01-01") as min_date
+    ,concat(year(max(hiredate)), "-12-31") as max_date
+from emp
+) x
+cross join t100
+where date_add(min_date, interval t100.id-1 month) <= max_date 
+;
+
+-- extract month and year
+select month(mth) as mth, year(mth) as yr
+from (
+select
+    date_add(min_date, interval t100.id-1 month) as mth
+from (
+select
+    concat(year(min(hiredate)), "-01-01") as min_date
+    ,concat(year(max(hiredate)), "-12-31") as max_date
+from emp
+) x
+cross join t100
+where date_add(min_date, interval t100.id-1 month) <= max_date 
+) y;
+
+-- join emp table
+select month(mth) as mth, year(mth) as yr, count(hiredate) as cnt_hired
+from (
+select
+    date_add(min_date, interval t100.id-1 month) as mth
+from (
+select
+    concat(year(min(hiredate)), "-01-01") as min_date
+    ,concat(year(max(hiredate)), "-12-31") as max_date
+from emp
+) x
+cross join t100
+where date_add(min_date, interval t100.id-1 month) <= max_date 
+) y
+left join emp
+on month(hiredate) = month(mth) and year(hiredate) = year(mth)
+group by year(mth), month(mth)
+;
+
+-- verify total makes sense
+-- there should be 14 employees total
+select sum(cnt_hired)
+from (
+select month(mth) as mth, year(mth) as yr, count(hiredate) as cnt_hired
+from (
+select
+    date_add(min_date, interval t100.id-1 month) as mth
+from (
+select
+    concat(year(min(hiredate)), "-01-01") as min_date
+    ,concat(year(max(hiredate)), "-12-31") as max_date
+from emp
+) x
+cross join t100
+where date_add(min_date, interval t100.id-1 month) <= max_date 
+) y
+left join emp
+on month(hiredate) = month(mth) and year(hiredate) = year(mth)
+group by year(mth), month(mth)
+) z
+;
+
+/* 9.11 Searching on specific units of time */
+
+-- Find all employees hired in the first quarter of any year
+select
+    ename
+    ,hiredate
+from emp 
+where quarter(hiredate) in (1)
+;
+
+/* 9.12 Comparing records using specific parts of a date */
+
+-- Find employees hired in the same month and year
+-- Technique involves a self join
+-- NB: Book problem example is to find empls hired on same
+--     month and weekday; I implemented month and year instead
+
+select
+    e.ename as e1
+    ,e.hiredate as hd1
+    ,e2.ename as e2
+    ,e2.hiredate as hd2
+from emp e
+join emp e2
+on month(e.hiredate) = month(e2.hiredate)
+and year(e.hiredate) = year(e2.hiredate)
+where e.empno < e2.empno
+;
